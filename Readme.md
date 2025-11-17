@@ -2,6 +2,13 @@
 
 分布式NCCL带宽测试和慢节点检测工具。支持多机器部署、Kubernetes集成，以及单机IB/CUDA测试。
 
+## 📚 文档导航
+
+- **[快速开始](#快速开始)** - 5分钟上手
+- **[执行指南](EXECUTION_GUIDE.md)** - 详细的步骤说明和完整示例
+- **[性能基准](PERFORMANCE_BENCHMARKS.md)** - 各种硬件配置的标准带宽值
+- **[高级检测](ADVANCED_DETECTION.md)** - 二分法和成对测试技术细节
+
 ## 功能特性
 
 1. **分布式NCCL测试** - 使用MPI在多个节点上运行NCCL通讯测试
@@ -42,6 +49,21 @@ slow_node/
 ```
 
 ## 快速开始
+
+### 0. 快速健康检查 ⚡
+
+首次使用？运行快速健康检查验证环境配置：
+
+```bash
+./scripts/quick_health_check.sh
+```
+
+这会检查：
+- ✅ GPU状态
+- ✅ InfiniBand连接
+- ✅ SSH配置
+- ✅ Hostfile设置
+- 📊 显示您硬件的预期性能基准
 
 ### 1. 构建Docker镜像
 
@@ -382,6 +404,38 @@ done
 | 8 GB         | ~240-260 GB/s     |
 
 如果你的结果显著低于这些值，可能存在配置问题或硬件故障。
+
+详细的性能基准请查看：**[PERFORMANCE_BENCHMARKS.md](PERFORMANCE_BENCHMARKS.md)**
+
+## 故障排查快速指南
+
+### 性能低于预期？
+
+1. **查看性能基准**：
+   ```bash
+   cat PERFORMANCE_BENCHMARKS.md
+   ```
+   找到您的硬件配置，对比实际结果
+
+2. **检查NVLink（单机）**：
+   ```bash
+   nvidia-smi nvlink --status
+   nvidia-smi topo -m
+   ```
+
+3. **检查InfiniBand（跨节点）**：
+   ```bash
+   ibstat
+   ibv_devinfo
+   ```
+
+4. **查看详细诊断**：参考 [EXECUTION_GUIDE.md](EXECUTION_GUIDE.md) 的"常见问题"章节
+
+### 需要详细帮助？
+
+- 📖 **执行指南**: [EXECUTION_GUIDE.md](EXECUTION_GUIDE.md) - 完整的使用说明
+- 📊 **性能基准**: [PERFORMANCE_BENCHMARKS.md](PERFORMANCE_BENCHMARKS.md) - 判断性能是否正常
+- 🔬 **高级检测**: [ADVANCED_DETECTION.md](ADVANCED_DETECTION.md) - 技术细节和原理
 
 ## 贡献
 

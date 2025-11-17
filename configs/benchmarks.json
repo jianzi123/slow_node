@@ -1,0 +1,249 @@
+{
+  "comment": "NCCL Performance Benchmarks - Expected bandwidth ranges for different hardware configurations",
+  "version": "1.0",
+  "last_updated": "2025-01-17",
+
+  "gpu_models": {
+    "A100-80GB-SXM": {
+      "name": "NVIDIA A100 80GB SXM",
+      "nvlink_version": "3.0",
+      "nvlink_bandwidth_gbps": 600,
+      "intra_node": {
+        "1GB": {
+          "algbw_min": 190,
+          "algbw_max": 210,
+          "busbw_min": 330,
+          "busbw_max": 370,
+          "unit": "GB/s"
+        },
+        "4GB": {
+          "algbw_min": 195,
+          "algbw_max": 215,
+          "busbw_min": 340,
+          "busbw_max": 375,
+          "unit": "GB/s"
+        }
+      },
+      "performance_thresholds": {
+        "excellent": 0.85,
+        "good": 0.75,
+        "acceptable": 0.65,
+        "poor": 0.65
+      }
+    },
+
+    "H100-80GB-SXM": {
+      "name": "NVIDIA H100 80GB SXM",
+      "nvlink_version": "4.0",
+      "nvlink_bandwidth_gbps": 900,
+      "intra_node": {
+        "1GB": {
+          "algbw_min": 270,
+          "algbw_max": 300,
+          "busbw_min": 470,
+          "busbw_max": 525,
+          "unit": "GB/s"
+        },
+        "4GB": {
+          "algbw_min": 280,
+          "algbw_max": 310,
+          "busbw_min": 490,
+          "busbw_max": 540,
+          "unit": "GB/s"
+        }
+      },
+      "performance_thresholds": {
+        "excellent": 0.85,
+        "good": 0.75,
+        "acceptable": 0.65,
+        "poor": 0.65
+      }
+    },
+
+    "V100-32GB-SXM": {
+      "name": "NVIDIA V100 32GB SXM",
+      "nvlink_version": "2.0",
+      "nvlink_bandwidth_gbps": 300,
+      "intra_node": {
+        "1GB": {
+          "algbw_min": 90,
+          "algbw_max": 110,
+          "busbw_min": 160,
+          "busbw_max": 190,
+          "unit": "GB/s"
+        }
+      },
+      "performance_thresholds": {
+        "excellent": 0.85,
+        "good": 0.75,
+        "acceptable": 0.65,
+        "poor": 0.65
+      }
+    }
+  },
+
+  "interconnects": {
+    "InfiniBand-HDR": {
+      "name": "InfiniBand HDR",
+      "speed_gbps": 200,
+      "speed_gBps": 25,
+      "dual_port_gBps": 50,
+      "inter_node_2nodes": {
+        "1GB": {
+          "busbw_min": 35,
+          "busbw_max": 42,
+          "unit": "GB/s"
+        },
+        "4GB": {
+          "busbw_min": 37,
+          "busbw_max": 44,
+          "unit": "GB/s"
+        }
+      },
+      "performance_thresholds": {
+        "excellent": 0.80,
+        "good": 0.70,
+        "acceptable": 0.60,
+        "poor": 0.60
+      }
+    },
+
+    "InfiniBand-NDR": {
+      "name": "InfiniBand NDR",
+      "speed_gbps": 400,
+      "speed_gBps": 50,
+      "dual_port_gBps": 100,
+      "inter_node_2nodes": {
+        "1GB": {
+          "busbw_min": 74,
+          "busbw_max": 88,
+          "unit": "GB/s"
+        },
+        "4GB": {
+          "busbw_min": 77,
+          "busbw_max": 91,
+          "unit": "GB/s"
+        }
+      },
+      "performance_thresholds": {
+        "excellent": 0.80,
+        "good": 0.70,
+        "acceptable": 0.60,
+        "poor": 0.60
+      }
+    },
+
+    "InfiniBand-EDR": {
+      "name": "InfiniBand EDR",
+      "speed_gbps": 100,
+      "speed_gBps": 12.5,
+      "dual_port_gBps": 25,
+      "inter_node_2nodes": {
+        "1GB": {
+          "busbw_min": 18,
+          "busbw_max": 22,
+          "unit": "GB/s"
+        }
+      },
+      "performance_thresholds": {
+        "excellent": 0.80,
+        "good": 0.68,
+        "acceptable": 0.55,
+        "poor": 0.55
+      }
+    },
+
+    "PCIe-Gen4-x16": {
+      "name": "PCIe Gen4 x16",
+      "speed_gBps": 64,
+      "practical_gBps": 28,
+      "p2p_same_switch": {
+        "bandwidth_min": 22,
+        "bandwidth_max": 26,
+        "unit": "GB/s"
+      },
+      "performance_thresholds": {
+        "excellent": 24,
+        "good": 20,
+        "acceptable": 16,
+        "poor": 16
+      }
+    }
+  },
+
+  "common_configurations": {
+    "DGX-A100": {
+      "description": "NVIDIA DGX A100 - 8x A100 80GB with NVLink",
+      "gpu_model": "A100-80GB-SXM",
+      "gpu_count": 8,
+      "interconnect": "InfiniBand-HDR",
+      "ib_ports": 8,
+      "expected_performance": {
+        "intra_node_1GB_busbw": {
+          "min": 330,
+          "max": 370,
+          "unit": "GB/s"
+        },
+        "inter_node_2nodes_1GB_busbw": {
+          "min": 35,
+          "max": 42,
+          "unit": "GB/s"
+        }
+      }
+    },
+
+    "DGX-H100": {
+      "description": "NVIDIA DGX H100 - 8x H100 80GB with NVLink",
+      "gpu_model": "H100-80GB-SXM",
+      "gpu_count": 8,
+      "interconnect": "InfiniBand-NDR",
+      "ib_ports": 8,
+      "expected_performance": {
+        "intra_node_1GB_busbw": {
+          "min": 470,
+          "max": 525,
+          "unit": "GB/s"
+        },
+        "inter_node_2nodes_1GB_busbw": {
+          "min": 74,
+          "max": 88,
+          "unit": "GB/s"
+        }
+      }
+    },
+
+    "Standard-Server-A100-PCIe": {
+      "description": "Standard server - 8x A100 PCIe without NVLink",
+      "gpu_model": "A100-80GB-PCIe",
+      "gpu_count": 8,
+      "interconnect": "InfiniBand-HDR",
+      "ib_ports": 2,
+      "expected_performance": {
+        "intra_node_1GB_busbw": {
+          "min": 18,
+          "max": 22,
+          "unit": "GB/s",
+          "note": "Limited by PCIe"
+        },
+        "inter_node_2nodes_1GB_busbw": {
+          "min": 35,
+          "max": 42,
+          "unit": "GB/s"
+        }
+      }
+    }
+  },
+
+  "test_parameters": {
+    "recommended": {
+      "message_sizes": ["128M", "1G", "4G"],
+      "iterations": 100,
+      "warmup_iterations": 5
+    },
+    "quick_test": {
+      "message_sizes": ["1G"],
+      "iterations": 20,
+      "warmup_iterations": 2
+    }
+  }
+}

@@ -16,6 +16,10 @@ K8S_DIR = k8s
 help:
 	@echo "NCCL Slow Node Detection Tool"
 	@echo ""
+	@echo "Quick Start:"
+	@echo "  health-check  - Quick environment and configuration check"
+	@echo "  setup         - Setup environment and permissions"
+	@echo ""
 	@echo "Available targets:"
 	@echo "  build         - Build Docker image"
 	@echo "  push          - Push Docker image to registry"
@@ -35,7 +39,11 @@ help:
 	@echo "Other:"
 	@echo "  clean         - Clean up results and temp files"
 	@echo "  deploy-k8s    - Deploy to Kubernetes"
-	@echo "  setup         - Setup environment and permissions"
+	@echo ""
+	@echo "Documentation:"
+	@echo "  cat EXECUTION_GUIDE.md        - Detailed usage guide"
+	@echo "  cat PERFORMANCE_BENCHMARKS.md - Performance standards"
+	@echo "  cat ADVANCED_DETECTION.md     - Technical details"
 	@echo ""
 	@echo "Configuration:"
 	@echo "  IMAGE_NAME=$(IMAGE_NAME)"
@@ -63,7 +71,12 @@ setup:
 	chmod +x $(SCRIPTS_DIR)/distributed/*.py
 	chmod +x $(SCRIPTS_DIR)/analysis/*.py
 	chmod +x $(SCRIPTS_DIR)/analysis/*.sh
+	chmod +x $(SCRIPTS_DIR)/quick_health_check.sh
 	@echo "Setup complete"
+
+health-check:
+	@echo "Running quick health check..."
+	@./scripts/quick_health_check.sh
 
 test-single:
 	@echo "Running single node tests..."
