@@ -7,8 +7,9 @@
 1. **分布式NCCL测试** - 使用MPI在多个节点上运行NCCL通讯测试
 2. **Kubernetes支持** - 提供完整的K8s部署配置
 3. **单机带宽测试** - 测试InfiniBand、CUDA和GPU P2P性能
-4. **慢节点检测** - 使用统计分析自动识别性能异常的节点
-5. **结果可视化** - 生成带宽性能图表和报告
+4. **🔥 智能慢节点检测** - 使用二分法和成对测试精确定位问题节点（基于业界最佳实践）
+5. **自动节点隔离** - 自动更新配置排除慢节点
+6. **结果可视化** - 生成带宽性能图表和报告
 
 ## 项目结构
 
@@ -28,8 +29,11 @@ slow_node/
 │   │   ├── run_nccl_test.sh         # NCCL测试运行器
 │   │   └── mpi_nccl_test.py         # Python MPI测试包装器
 │   └── analysis/             # 分析工具
-│       ├── detect_slow_nodes.py     # 慢节点检测
-│       └── visualize_results.py     # 结果可视化
+│       ├── detect_slow_nodes.py           # 统计分析慢节点检测
+│       ├── bisection_detection.py         # 二分法+成对测试检测（推荐）
+│       ├── run_advanced_detection.sh      # 高级检测运行器
+│       ├── node_isolation_helper.py       # 节点隔离辅助工具
+│       └── visualize_results.py           # 结果可视化
 ├── configs/                   # 配置文件
 │   ├── hostfile.template     # MPI主机文件模板
 │   └── nccl_env.conf         # NCCL环境变量配置
@@ -115,6 +119,36 @@ kubectl logs -f nccl-bandwidth-test-launcher-xxxxx
 
 ### 4. 慢节点检测
 
+#### 方法A: 高级检测（推荐） - 二分法 + 成对测试
+
+基于业界最佳实践（Google Cloud Cluster Health Scanner、Microsoft Azure DGX）的智能检测方法：
+
+```bash
+# 二分法检测（快速，推荐）
+# 使用二分搜索算法快速定位慢节点
+make detect-bisection
+
+# 成对测试（全面）
+# 测试所有节点对，识别通信问题
+make detect-pairwise
+
+# 综合检测（最彻底）
+# 同时使用两种方法，最高准确度
+make detect-advanced
+
+# 自动隔离检测到的慢节点
+make isolate
+```
+
+**工作原理**：
+1. **二分法**: 递归分组测试节点，快速缩小问题范围（类似二分查找）
+2. **成对测试**: 测试所有节点配对，找出系统性表现差的节点
+3. **自动隔离**: 更新hostfile，注释掉坏节点，生成K8s/SLURM排除配置
+
+#### 方法B: 传统统计分析
+
+基于已完成的测试结果进行统计分析：
+
 ```bash
 # 自动检测最新的测试结果
 make detect
@@ -142,9 +176,58 @@ make visualize
 
 ## 慢节点检测原理
 
-慢节点检测工具使用多种统计方法识别性能异常：
+### 🔥 高级检测方法（推荐）
 
-### 检测方法
+基于业界最佳实践的智能检测算法：
+
+#### 1. 二分法检测 (Binary Search Detection)
+
+灵感来源：**Microsoft Azure DGX** - "binary search and pairwise NCCL tests were performed to isolate underperforming nodes"
+
+**算法流程**：
+```
+开始: 测试所有N个节点
+  ├─ 如果正常 → 结束 ✓
+  └─ 如果异常 → 拆分为两组
+      ├─ 测试左半部分 (N/2个节点)
+      │   ├─ 如果正常 → 标记为好节点
+      │   └─ 如果异常 → 继续递归拆分
+      └─ 测试右半部分 (N/2个节点)
+          ├─ 如果正常 → 标记为好节点
+          └─ 如果异常 → 继续递归拆分
+最终: 识别所有慢节点
+```
+
+**优势**：
+- **效率高**: O(N·log N) 复杂度，远优于全量测试
+- **准确性高**: 直接测试节点组合，而非依赖统计推断
+- **适合大规模集群**: 64节点集群只需约6轮测试
+
+#### 2. 成对测试 (Pairwise Testing)
+
+灵感来源：**Google Cloud Cluster Health Scanner** - "runs a pairwise NCCL bandwidth test on the cluster"
+
+**方法**：
+- 测试所有节点对组合: C(N,2) = N×(N-1)/2
+- 统计每个节点在不同配对中的平均性能
+- 识别系统性表现差的节点（在多个配对中都慢）
+
+**优势**：
+- **全面性**: 测试所有节点间通信
+- **可识别通信问题**: 发现特定节点对之间的连接问题
+- **减少误判**: 基于多次测试的统计平均
+
+#### 3. 组合策略
+
+```bash
+# 推荐流程
+make detect-advanced  # 二分法 + 成对测试
+make isolate          # 自动隔离坏节点
+```
+
+### 传统统计检测方法
+
+适用于已有测试结果的事后分析：
 
 1. **Z-Score分析**
    - 计算每个节点带宽的Z分数
@@ -159,22 +242,6 @@ make visualize
 3. **交叉验证**
    - 两种方法的交集提供高置信度结果
    - 减少误报率
-
-### 检测流程
-
-```
-NCCL测试结果
-    ↓
-提取带宽数据
-    ↓
-按节点分组统计
-    ↓
-应用检测算法 (Z-Score + IQR)
-    ↓
-识别异常节点
-    ↓
-生成报告和可视化
-```
 
 ### 示例输出
 

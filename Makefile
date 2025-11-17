@@ -21,7 +21,18 @@ help:
 	@echo "  push          - Push Docker image to registry"
 	@echo "  test-single   - Run single node tests"
 	@echo "  test-distributed - Run distributed NCCL tests"
-	@echo "  detect        - Run slow node detection analysis"
+	@echo ""
+	@echo "Detection (Advanced - Recommended):"
+	@echo "  detect-bisection  - Binary search detection (fast, accurate)"
+	@echo "  detect-pairwise   - Pairwise node testing (comprehensive)"
+	@echo "  detect-advanced   - Both bisection + pairwise (most thorough)"
+	@echo "  isolate          - Isolate detected bad nodes from hostfile"
+	@echo ""
+	@echo "Detection (Legacy):"
+	@echo "  detect        - Statistical analysis of test results"
+	@echo "  visualize     - Create performance visualizations"
+	@echo ""
+	@echo "Other:"
 	@echo "  clean         - Clean up results and temp files"
 	@echo "  deploy-k8s    - Deploy to Kubernetes"
 	@echo "  setup         - Setup environment and permissions"
@@ -49,7 +60,9 @@ setup:
 	mkdir -p results visualizations
 	chmod +x $(SCRIPTS_DIR)/single_node/*.sh
 	chmod +x $(SCRIPTS_DIR)/distributed/*.sh
+	chmod +x $(SCRIPTS_DIR)/distributed/*.py
 	chmod +x $(SCRIPTS_DIR)/analysis/*.py
+	chmod +x $(SCRIPTS_DIR)/analysis/*.sh
 	@echo "Setup complete"
 
 test-single:
@@ -70,7 +83,7 @@ test-distributed:
 	@echo "Distributed tests complete"
 
 detect:
-	@echo "Running slow node detection..."
+	@echo "Running slow node detection (legacy statistical analysis)..."
 	@LATEST=$$(ls -t results/nccl_test_*.json 2>/dev/null | head -1); \
 	if [ -z "$$LATEST" ]; then \
 		echo "Error: No test results found. Run 'make test-distributed' first"; \
@@ -78,6 +91,40 @@ detect:
 	fi; \
 	$(SCRIPTS_DIR)/analysis/detect_slow_nodes.py $$LATEST --output results/slow_node_report.txt --verbose
 	@echo "Detection complete"
+
+detect-bisection:
+	@echo "Running binary search slow node detection..."
+	@if [ ! -f "hostfile" ]; then \
+		echo "Error: hostfile not found. Copy from configs/hostfile.template"; \
+		exit 1; \
+	fi
+	MODE=bisection $(SCRIPTS_DIR)/analysis/run_advanced_detection.sh
+
+detect-pairwise:
+	@echo "Running pairwise node testing..."
+	@if [ ! -f "hostfile" ]; then \
+		echo "Error: hostfile not found. Copy from configs/hostfile.template"; \
+		exit 1; \
+	fi
+	MODE=pairwise $(SCRIPTS_DIR)/analysis/run_advanced_detection.sh
+
+detect-advanced:
+	@echo "Running comprehensive detection (bisection + pairwise)..."
+	@if [ ! -f "hostfile" ]; then \
+		echo "Error: hostfile not found. Copy from configs/hostfile.template"; \
+		exit 1; \
+	fi
+	MODE=both $(SCRIPTS_DIR)/analysis/run_advanced_detection.sh
+
+isolate:
+	@echo "Isolating bad nodes from hostfile..."
+	@LATEST=$$(ls -t results/bisection_report_*.json results/pairwise_report_*.json 2>/dev/null | head -1); \
+	if [ -z "$$LATEST" ]; then \
+		echo "Error: No detection report found. Run 'make detect-advanced' first"; \
+		exit 1; \
+	fi; \
+	$(SCRIPTS_DIR)/analysis/node_isolation_helper.py --report $$LATEST --hostfile hostfile
+	@echo "Isolation complete. Review updated hostfile."
 
 visualize:
 	@echo "Creating visualizations..."
