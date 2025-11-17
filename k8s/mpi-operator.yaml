@@ -1,0 +1,105 @@
+---
+# Alternative: Using Kubeflow MPI Operator for easier MPI job management
+# Install MPI Operator first: kubectl apply -f https://raw.githubusercontent.com/kubeflow/mpi-operator/master/deploy/v2beta1/mpi-operator.yaml
+
+apiVersion: kubeflow.org/v2beta1
+kind: MPIJob
+metadata:
+  name: nccl-bandwidth-test
+  namespace: default
+spec:
+  slotsPerWorker: 8  # Number of GPUs per worker
+  runPolicy:
+    cleanPodPolicy: Running
+    backoffLimit: 3
+  mpiReplicaSpecs:
+    Launcher:
+      replicas: 1
+      template:
+        spec:
+          containers:
+          - name: launcher
+            image: your-registry/nccl-mpi:latest
+            imagePullPolicy: Always
+            command:
+            - mpirun
+            args:
+            - --allow-run-as-root
+            - -np
+            - "16"  # Total number of processes (workers * slots)
+            - --bind-to
+            - none
+            - --map-by
+            - slot
+            - -x
+            - NCCL_DEBUG=INFO
+            - -x
+            - NCCL_IB_DISABLE=0
+            - -x
+            - NCCL_SOCKET_IFNAME=eth0
+            - -x
+            - NCCL_IB_HCA=mlx5
+            - -x
+            - LD_LIBRARY_PATH
+            - /usr/local/bin/all_reduce_perf
+            - -b
+            - "8"
+            - -e
+            - "8G"
+            - -f
+            - "2"
+            - -g
+            - "1"
+            - -c
+            - "1"
+            - -n
+            - "100"
+            resources:
+              limits:
+                cpu: 4
+                memory: 8Gi
+              requests:
+                cpu: 2
+                memory: 4Gi
+    Worker:
+      replicas: 2  # Number of worker nodes
+      template:
+        spec:
+          hostNetwork: true
+          hostIPC: true
+          containers:
+          - name: worker
+            image: your-registry/nccl-mpi:latest
+            imagePullPolicy: Always
+            env:
+            - name: NCCL_DEBUG
+              value: "INFO"
+            - name: NCCL_IB_DISABLE
+              value: "0"
+            - name: NCCL_SOCKET_IFNAME
+              value: "eth0"
+            - name: NCCL_IB_GID_INDEX
+              value: "3"
+            - name: NCCL_NET_GDR_LEVEL
+              value: "5"
+            resources:
+              limits:
+                nvidia.com/gpu: 8
+                rdma/hca_shared_devices_a: 1
+              requests:
+                nvidia.com/gpu: 8
+                rdma/hca_shared_devices_a: 1
+            volumeMounts:
+            - name: shm
+              mountPath: /dev/shm
+            securityContext:
+              privileged: true
+              capabilities:
+                add:
+                - IPC_LOCK
+                - SYS_ADMIN
+          volumes:
+          - name: shm
+            emptyDir:
+              medium: Memory
+              sizeLimit: 32Gi

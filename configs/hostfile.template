@@ -1,0 +1,21 @@
+# MPI Hostfile Template
+# Format: hostname slots=N
+# Where N is the number of GPUs per node
+
+# Example configuration for 4 nodes with 8 GPUs each
+# Uncomment and modify according to your cluster
+
+# node1 slots=8
+# node2 slots=8
+# node3 slots=8
+# node4 slots=8
+
+# Or use IP addresses
+# 192.168.1.101 slots=8
+# 192.168.1.102 slots=8
+# 192.168.1.103 slots=8
+# 192.168.1.104 slots=8
+
+# For Kubernetes pods
+# nccl-test-worker-0.nccl-test-worker.default.svc.cluster.local slots=8
+# nccl-test-worker-1.nccl-test-worker.default.svc.cluster.local slots=8

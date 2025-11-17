@@ -1,0 +1,11 @@
+results/
+visualizations/
+*.pyc
+__pycache__/
+.git/
+.gitignore
+*.md
+*.log
+*.txt
+.vscode/
+.idea/
