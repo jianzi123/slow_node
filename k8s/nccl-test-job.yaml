@@ -1,0 +1,172 @@
+---
+# ConfigMap for MPI hostfile
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nccl-test-scripts
+  namespace: default
+data:
+  run-nccl-test.sh: |
+    #!/bin/bash
+    set -e
+
+    # Generate hostfile from Kubernetes statefulset
+    HOSTFILE="/workspace/hostfile"
+    > $HOSTFILE
+
+    for i in $(seq 0 $((WORKER_COUNT - 1))); do
+        echo "nccl-test-worker-${i}.nccl-test-worker.default.svc.cluster.local slots=${GPUS_PER_NODE}" >> $HOSTFILE
+    done
+
+    echo "Generated hostfile:"
+    cat $HOSTFILE
+
+    # Run NCCL test with MPI
+    mpirun --allow-run-as-root \
+           --hostfile $HOSTFILE \
+           -np $((WORKER_COUNT * GPUS_PER_NODE)) \
+           --bind-to none \
+           --map-by slot \
+           -mca pml ob1 \
+           -mca btl ^openib \
+           -mca btl_tcp_if_include eth0 \
+           --mca plm_rsh_no_tree_spawn 1 \
+           -x NCCL_DEBUG=INFO \
+           -x NCCL_IB_DISABLE=0 \
+           -x NCCL_SOCKET_IFNAME=eth0 \
+           -x NCCL_IB_GID_INDEX=3 \
+           -x NCCL_IB_HCA=mlx5 \
+           -x NCCL_NET_GDR_LEVEL=5 \
+           -x LD_LIBRARY_PATH \
+           /usr/local/bin/all_reduce_perf \
+           -b 8 -e 8G -f 2 -g 1 -c 1 -n 100
+
+---
+# Headless Service for StatefulSet
+apiVersion: v1
+kind: Service
+metadata:
+  name: nccl-test-worker
+  namespace: default
+spec:
+  clusterIP: None
+  selector:
+    app: nccl-test
+  ports:
+  - name: ssh
+    port: 22
+    targetPort: 22
+
+---
+# StatefulSet for NCCL test workers
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nccl-test-worker
+  namespace: default
+spec:
+  serviceName: nccl-test-worker
+  replicas: 2  # Number of worker nodes
+  selector:
+    matchLabels:
+      app: nccl-test
+  template:
+    metadata:
+      labels:
+        app: nccl-test
+    spec:
+      hostNetwork: true
+      hostIPC: true
+      hostPID: true
+      containers:
+      - name: nccl-test
+        image: your-registry/nccl-mpi:latest  # Replace with your image
+        imagePullPolicy: Always
+        command: ["/bin/bash", "-c"]
+        args:
+          - |
+            # Start SSH service
+            service ssh start
+
+            # Keep container running
+            tail -f /dev/null
+        env:
+        - name: WORKER_COUNT
+          value: "2"  # Should match replicas
+        - name: GPUS_PER_NODE
+          value: "8"  # Number of GPUs per node
+        - name: NCCL_DEBUG
+          value: "INFO"
+        - name: NCCL_IB_DISABLE
+          value: "0"
+        - name: NCCL_SOCKET_IFNAME
+          value: "eth0"
+        resources:
+          limits:
+            nvidia.com/gpu: 8  # Request all GPUs
+            rdma/hca_shared_devices_a: 1  # InfiniBand device
+          requests:
+            nvidia.com/gpu: 8
+            rdma/hca_shared_devices_a: 1
+        volumeMounts:
+        - name: scripts
+          mountPath: /workspace/scripts
+        - name: shm
+          mountPath: /dev/shm
+        - name: sys
+          mountPath: /sys
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+            - IPC_LOCK
+            - SYS_ADMIN
+      volumes:
+      - name: scripts
+        configMap:
+          name: nccl-test-scripts
+          defaultMode: 0755
+      - name: shm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 32Gi
+      - name: sys
+        hostPath:
+          path: /sys
+
+---
+# Job to run the NCCL test (run this after StatefulSet is ready)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nccl-test-runner
+  namespace: default
+spec:
+  template:
+    metadata:
+      labels:
+        app: nccl-test-runner
+    spec:
+      restartPolicy: Never
+      hostNetwork: true
+      containers:
+      - name: runner
+        image: your-registry/nccl-mpi:latest
+        command: ["/workspace/scripts/run-nccl-test.sh"]
+        env:
+        - name: WORKER_COUNT
+          value: "2"
+        - name: GPUS_PER_NODE
+          value: "8"
+        volumeMounts:
+        - name: scripts
+          mountPath: /workspace/scripts
+        - name: results
+          mountPath: /workspace/results
+      volumes:
+      - name: scripts
+        configMap:
+          name: nccl-test-scripts
+          defaultMode: 0755
+      - name: results
+        emptyDir: {}
